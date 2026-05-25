@@ -1,0 +1,1843 @@
+
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable react-native/no-unused-styles */
+
+import React, { useState, useEffect } from 'react';
+import {
+  SafeAreaView,
+  ScrollView,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Switch
+} from 'react-native';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
+import { Ionicons } from '@expo/vector-icons';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+export default function App() {
+  const today = new Date();
+
+  const formattedDate = `${today
+    .getDate()
+    .toString()
+    .padStart(2, '0')}.${(today.getMonth() + 1)
+    .toString()
+    .padStart(2, '0')}.${today.getFullYear()}`;
+
+  const morningHours = [
+    '08',
+    '09',
+    '10',
+    '11',
+    '12',
+    '13',
+    '14',
+  ];
+
+  const lunchHours = [
+    '15',
+    '16',
+    '17',
+    '18',
+    '19',
+    '20',
+  ];
+
+  const [shiftType, setShiftType] =
+    useState('morning');
+
+  const [name, setName] = useState('');
+
+  const [checks, setChecks] = useState(
+    {}
+  );
+
+  const [duringChecks, setDuringChecks] =
+    useState({});
+
+  const [afterChecks, setAfterChecks] =
+    useState({});
+
+  const [walkChecks, setWalkChecks] =
+    useState({});
+
+  const [hoursWorked, setHoursWorked] =
+    useState('');
+
+  const [showSettings, setShowSettings] =
+    useState(false);
+
+  const [password, setPassword] =
+    useState('');
+
+  const [isUnlocked, setIsUnlocked] =
+    useState(false);
+
+  const [editingEnabled, setEditingEnabled] =
+    useState(false);
+
+  const [notes, setNotes] =
+    useState('');
+
+  const [darkMode, setDarkMode] =
+    useState(false);
+
+  const [morningChecklist, setMorningChecklist] =
+    useState([
+      'Prebraté shift kľúče a mngr trezor?',
+      'Ľudia na zmenu naplánovaní?',
+      'Ciele zmeny nadefinované?',
+      'BTO tabuľky vyplnené?',
+      'Kontrola deaktivovaných produktov?',
+      'FIFO a FSA',
+      'Funkčné zariadenia',
+      'Uniformy zamestnancov',
+    ]);
+
+  const [lunchChecklist, setLunchChecklist] =
+    useState([
+      'Ľudia na zmenu naplánovaní?',
+      'Skontrolované doby spotreby?',
+      'Ciele zmeny nadefinované?',
+      'BTO tabuľky vyplnené?',
+      'Kontrola deaktivovaných produktov?',
+      'Lobby je čisté?',
+      'e-production nastavená?',
+      'FIFO a FSA',
+      'Funkčné zariadenia',
+      'Uniformy zamestnancov',
+    ]);
+
+  const [tableData, setTableData] =
+    useState([]);
+
+  const [newBeforeItem, setNewBeforeItem] =
+    useState('');
+
+  const [newDuringItem, setNewDuringItem] =
+    useState('');
+
+  const [newAfterItem, setNewAfterItem] =
+    useState('');
+
+  const [walkTimes, setWalkTimes] =
+    useState(
+      shiftType === 'morning'
+        ? morningHours.map(h => `${h}:00`)
+        : lunchHours.map(h => `${h}:00`)
+    );
+
+
+  useEffect(() => {
+    loadData();
+
+    Notifications.requestPermissionsAsync();
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [shiftType]);
+
+  useEffect(() => {
+    saveData();
+  }, [
+    shiftType,
+    name,
+    checks,
+    duringChecks,
+    afterChecks,
+    walkChecks,
+    hoursWorked,
+    morningChecklist,
+    lunchChecklist,
+    tableData,
+    darkMode,
+    notes,
+  ]);
+
+  const loadData = async () => {
+    try {
+      const savedData =
+        await AsyncStorage.getItem(
+          `shiftData_${shiftType}`
+        );
+
+      if (savedData) {
+        const parsed =
+          JSON.parse(savedData);
+
+        setName(parsed.name || '');
+        setChecks(parsed.checks || {});
+        setDuringChecks(
+          parsed.duringChecks || {}
+        );
+        setAfterChecks(
+          parsed.afterChecks || {}
+        );
+        setWalkChecks(
+          parsed.walkChecks || {}
+        );
+        setHoursWorked(
+          parsed.hoursWorked || ''
+        );
+        setTableData(
+          parsed.tableData || []
+        );
+
+        setNotes(
+          parsed.notes || ''
+        );
+
+        setDarkMode(
+          parsed.darkMode || false
+        );
+      }
+
+      const savedMorning =
+        await AsyncStorage.getItem(
+          'morningChecklist'
+        );
+
+      const savedLunch =
+        await AsyncStorage.getItem(
+          'lunchChecklist'
+        );
+
+      if (savedMorning) {
+        setMorningChecklist(
+          JSON.parse(savedMorning)
+        );
+      }
+
+      if (savedLunch) {
+        setLunchChecklist(
+          JSON.parse(savedLunch)
+        );
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
+  const saveData = async () => {
+    try {
+      const data = {
+        name,
+        checks,
+        duringChecks,
+        afterChecks,
+        walkChecks,
+        hoursWorked,
+        tableData,
+        notes,
+        darkMode,
+      };
+
+      await AsyncStorage.setItem(
+        `shiftData_${shiftType}`,
+        JSON.stringify(data)
+      );
+
+      await AsyncStorage.setItem(
+        'morningChecklist',
+        JSON.stringify(
+          morningChecklist
+        )
+      );
+
+      await AsyncStorage.setItem(
+        'lunchChecklist',
+        JSON.stringify(
+          lunchChecklist
+        )
+      );
+    } catch (e) {
+      console.log(e);
+    }
+  };
+ useEffect(() => {
+  const currentHours =
+    shiftType === 'morning'
+      ? morningHours
+      : lunchHours;
+
+  if (tableData.length === 0) {
+    const newTableData =
+      currentHours.map((hour) => ({
+        hour,
+        salesPlan: '',
+        salesReality: '',
+        tcPlan: '',
+        tcReality: '',
+        mfy: '',
+        r2p: '',
+        sendKuch: '',
+        del: '',
+      }));
+
+    setTableData(newTableData);
+  }
+}, [shiftType, tableData]);
+
+  const checklist =
+    shiftType === 'morning'
+      ? morningChecklist
+      : lunchChecklist;
+
+  
+  const [duringChecklist, setDuringChecklist] =
+    useState(
+      shiftType === 'morning'
+        ? [
+            'Kontrola raňajok (Prechod)',
+            'Kuchyňa aj servis navozené?',
+            'HACCP kontroly vykonané?',
+          ]
+        : [
+            'Hodinové vyhodnocovanie ukazovateľov',
+            'Kuchyňa aj servis navozené?',
+            'HACCP kontroly vykonané?',
+          ]
+    );
+
+  const [afterChecklist, setAfterChecklist] =
+    useState(
+      shiftType === 'morning'
+        ? [
+            'Ciele vyhodnotené a komunikované s vedúcimi zón?',
+            'Vyvozené príručné mrazničky',
+            'Tabuľka vyhodnotenie zmeny vyplnená?',
+            'Vyčistený kávovar',
+            'Tréning + verifikácie v tabuľke vyhodnotené?',
+            'Kancelária je čistá, poriadená?',
+          ]
+        : [
+            'Podstatné informácie prichádzajúcemu shiftovi odovzdané?',
+            'Ciele vyhodnotené a komunikované s vedúcimi zón?',
+            'Odpad nahodený?',
+            'Tabuľka vyhodnotenie zmeny vyplnená?',
+            'Depozity a odvod spravený?',
+            'Tréning + verifikácie v tabuľke vyhodnotené?',
+            'Kancelária je čistá, poriadená?',
+          ]
+    );
+
+  const [walkChecklist, setWalkChecklist] =
+    useState([
+      'Kontrola lobby',
+      'Kontrola WC',
+      'Kontrola kitchen',
+    ]);
+
+  const [newItemText, setNewItemText] =
+    useState('');
+
+
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    checkNotifications();
+  }, 60000);
+
+  return () => clearInterval(interval);
+}, [tableData, checks, shiftType]);
+
+const updateChecklist = (
+  section,
+  index,
+  value
+) => {
+  if (section === 'before') {
+    const updated = [...checklist];
+    updated[index] = value;
+    if (shiftType === 'morning') {
+      setMorningChecklist(updated);
+    } else {
+      setLunchChecklist(updated);
+    }
+  }
+
+  if (section === 'during') {
+    const updated = [...duringChecklist];
+    updated[index] = value;
+    setDuringChecklist(updated);
+  }
+
+  if (section === 'after') {
+    const updated = [...afterChecklist];
+    updated[index] = value;
+    setAfterChecklist(updated);
+  }
+};
+
+const addChecklistItem = (section) => {
+  if (section === 'before') {
+    if (shiftType === 'morning') {
+      setMorningChecklist([...morningChecklist, newBeforeItem || '']);
+    } else {
+      setLunchChecklist([...lunchChecklist, newBeforeItem || '']);
+    }
+    setNewBeforeItem('');
+  }
+
+  if (section === 'during') {
+    setDuringChecklist([...duringChecklist, newDuringItem || '']);
+    setNewDuringItem('');
+  }
+
+  if (section === 'after') {
+    setAfterChecklist([...afterChecklist, newAfterItem || '']);
+    setNewAfterItem('');
+  }
+};
+
+const deleteChecklistItem = (section, index) => {
+  if (section === 'before') {
+    if (shiftType === 'morning') {
+      setMorningChecklist(morningChecklist.filter((_, i) => i !== index));
+    } else {
+      setLunchChecklist(lunchChecklist.filter((_, i) => i !== index));
+    }
+  }
+
+  if (section === 'during') {
+    setDuringChecklist(duringChecklist.filter((_, i) => i !== index));
+  }
+
+  if (section === 'after') {
+    setAfterChecklist(afterChecklist.filter((_, i) => i !== index));
+  }
+};
+
+const updateWalkTime = (index, value) => {
+  const updated = [...walkTimes];
+  updated[index] = value;
+  setWalkTimes(updated);
+};
+
+const resetApp = () => {};
+
+
+  const checkNotifications = async () => {
+    const now = new Date();
+
+    const currentHour =
+      now.getHours();
+
+    const currentMinutes =
+      now.getMinutes();
+      if (
+  shiftType === 'morning' &&
+  currentHour === 8 &&
+  currentMinutes === 30
+) {
+  const allChecked =
+    Object.values(checks).every(
+      (v) => v === true
+    );
+
+  if (!allChecked) {
+    await Notifications.scheduleNotificationAsync(
+      {
+        content: {
+          title: 'Ranný checklist',
+          body:
+            'Nemáš dokončený checklist pred zmenou',
+        },
+        trigger: null,
+      }
+    );
+  }
+}
+
+if (
+  shiftType === 'lunch' &&
+  currentHour === 15 &&
+  currentMinutes === 0
+) {
+  const allChecked =
+    Object.values(checks).every(
+      (v) => v === true
+    );
+
+  if (!allChecked) {
+    await Notifications.scheduleNotificationAsync(
+      {
+        content: {
+          title: 'Obedný checklist',
+          body:
+            'Nemáš dokončený checklist pred zmenou',
+        },
+        trigger: null,
+      }
+    );
+  }
+}
+
+    if (currentMinutes >= 15) {
+      const previousHour = (
+        currentHour - 1
+      )
+        .toString()
+        .padStart(2, '0');
+
+      const row = tableData.find(
+        (r) => r.hour === previousHour
+      );
+
+      if (
+        row &&
+        (
+          row.salesReality === '' ||
+          row.tcReality === ''
+        )
+      ) {
+        await Notifications.scheduleNotificationAsync(
+          {
+            content: {
+              title:
+                'Nevyplnená hodina',
+              body: `Zabudol si vypísať hodinu ${previousHour}:00`,
+            },
+            trigger: null,
+          }
+        );
+      }
+    }
+  };
+
+  const toggleCheck = (key) => {
+    setChecks((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const toggleDuringCheck = (key) => {
+    setDuringChecks((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const toggleAfterCheck = (key) => {
+    setAfterChecks((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  const toggleWalkCheck = (key) => {
+    setWalkChecks((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+    const updateRow = (
+    index,
+    field,
+    value
+  ) => {
+    const updated = [...tableData];
+
+    updated[index][field] = value;
+
+    const tcPlan =
+      parseFloat(updated[index].tcPlan) || 0;
+
+    updated[index].sendKuch = (
+      tcPlan * 1.9
+    ).toFixed(0);
+
+    updated[index].del = (
+      tcPlan * 0.07
+    ).toFixed(0);
+
+    setTableData(updated);
+  };
+
+  const calculateSum = (field) => {
+    return tableData.reduce((sum, row) => {
+      const theme = darkMode
+    ? darkTheme
+    : lightTheme;
+
+  return (
+        sum +
+        (parseFloat(row[field]) || 0)
+      );
+    }, 0);
+  };
+
+  const calculateAverage = () => {
+    const values = tableData
+      .map((row) => parseFloat(row.r2p))
+      .filter((v) => !isNaN(v));
+
+    if (values.length === 0) return '0';
+
+    const theme = darkMode
+    ? darkTheme
+    : lightTheme;
+
+  return (
+      values.reduce(
+        (sum, value) => sum + value,
+        0
+      ) / values.length
+    ).toFixed(2);
+  };
+
+  const calculateProductivity = (
+    field
+  ) => {
+    const hours =
+      parseFloat(hoursWorked) || 0;
+
+    if (hours === 0) return '0';
+
+    const theme = darkMode
+    ? darkTheme
+    : lightTheme;
+
+  return (
+      calculateSum(field) / hours
+    ).toFixed(2);
+  };
+
+  const getPerformanceColor = (
+    plan,
+    real
+  ) => {
+    const planValue =
+      parseFloat(plan) || 0;
+
+    const realValue =
+      parseFloat(real) || 0;
+
+    if (planValue === 0 || realValue === 0) {
+      return 'white';
+    }
+
+    if (realValue >= planValue) {
+      return '#7DFFB3';
+    }
+
+    if (realValue >= planValue * 0.9) {
+      return '#FFC857';
+    }
+
+    return '#FF6B6B';
+  };
+
+
+  const addItemToSection = (section) => {
+
+    if (!newItemText) return;
+
+    if (section === 'before') {
+      setMorningChecklist([
+        ...morningChecklist,
+        newItemText,
+      ]);
+    }
+
+    if (section === 'during') {
+      setDuringChecklist([
+        ...duringChecklist,
+        newItemText,
+      ]);
+    }
+
+    if (section === 'after') {
+      setAfterChecklist([
+        ...afterChecklist,
+        newItemText,
+      ]);
+    }
+
+    if (section === 'walk') {
+      setWalkChecklist([
+        ...walkChecklist,
+        newItemText,
+      ]);
+    }
+
+    setNewItemText('');
+  };
+
+  const editSectionItem = (
+    section,
+    index,
+    value
+  ) => {
+
+    const updateArray = (
+      arr,
+      setter
+    ) => {
+      const updated = [...arr];
+      updated[index] = value;
+      setter(updated);
+    };
+
+    if (section === 'before') {
+      updateArray(
+        morningChecklist,
+        setMorningChecklist
+      );
+    }
+
+    if (section === 'during') {
+      updateArray(
+        duringChecklist,
+        setDuringChecklist
+      );
+    }
+
+    if (section === 'after') {
+      updateArray(
+        afterChecklist,
+        setAfterChecklist
+      );
+    }
+
+    if (section === 'walk') {
+      updateArray(
+        walkChecklist,
+        setWalkChecklist
+      );
+    }
+
+  };
+
+  const unlockSettings = () => {
+    if (password === '****') {
+      setIsUnlocked(true);
+
+      Alert.alert(
+        'Odomknuté',
+        'Editovanie povolené'
+      );
+    } else {
+      Alert.alert(
+        'Chyba',
+        'Nesprávne heslo'
+      );
+    }
+  };
+
+  const unlockEditing = () => {
+    if (password === '****') {
+      setEditingEnabled(true);
+
+      Alert.alert(
+        'Odomknuté',
+        'Editovanie povolené'
+      );
+    } else {
+      Alert.alert(
+        'Chyba',
+        'Nesprávne heslo'
+      );
+    }
+  };
+
+  const resetShift = () => {
+    Alert.alert(
+      'Reset zmeny',
+      'Naozaj chceš resetovať zmenu?',
+      [
+        {
+          text: 'Nie',
+          style: 'cancel',
+        },
+        {
+          text: 'Áno',
+          style: 'destructive',
+          onPress: async () => {
+            const currentHours =
+              shiftType === 'morning'
+                ? morningHours
+                : lunchHours;
+
+            const newTableData =
+              currentHours.map((hour) => ({
+                hour,
+                salesPlan: '',
+                salesReality: '',
+                tcPlan: '',
+                tcReality: '',
+                mfy: '',
+                r2p: '',
+                sendKuch: '',
+                del: '',
+              }));
+
+            setChecks({});
+            setDuringChecks({});
+            setAfterChecks({});
+            setWalkChecks({});
+            setNotes('');
+            setHoursWorked('');
+            setTableData(newTableData);
+
+            await AsyncStorage.removeItem(
+              `shiftData_${shiftType}`
+            );
+
+            await AsyncStorage.setItem(
+              `shiftData_${shiftType}`,
+              JSON.stringify({
+                checks: {},
+                duringChecks: {},
+                afterChecks: {},
+                walkChecks: {},
+                notes: '',
+                hoursWorked: '',
+                tableData: newTableData,
+              })
+            );
+
+            loadData();
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const updateChecklistItem = (
+    index,
+    value
+  ) => {
+    if (shiftType === 'morning') {
+      const updated = [...morningChecklist];
+
+      updated[index] = value;
+
+      setMorningChecklist(updated);
+    } else {
+      const updated = [...lunchChecklist];
+
+      updated[index] = value;
+
+      setLunchChecklist(updated);
+    }
+  };
+    const theme = darkMode
+    ? darkTheme
+    : lightTheme;
+
+  return (
+    <SafeAreaView
+      style={[
+        styles.container,
+        {
+          backgroundColor:
+            theme.background,
+        },
+      ]}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+      >
+        <View style={styles.headerRow}>
+          <Text style={[styles.title,{color: theme.text}]}>
+            Shift check-list
+          </Text>
+
+          <TouchableOpacity
+            style={[
+              styles.topRightSettings,
+              {
+                backgroundColor:
+                  theme.card,
+              },
+            ]}
+            onPress={() =>
+              setShowSettings(!showSettings)
+            }
+          >
+            <Ionicons
+              name='settings-outline'
+              size={26}
+              color={theme.icon}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={[styles.date,{color: theme.subText}]}>
+          Dátum: {formattedDate}
+        </Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder='Meno'
+          value={name}
+          onChangeText={setName}
+        />
+
+        {showSettings && (
+          <View
+            style={[
+              styles.settingsBox,
+              {
+                backgroundColor:
+                  theme.card,
+              },
+            ]}>
+
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent:
+                  'space-between',
+                alignItems: 'center',
+                marginBottom: 15,
+              }}
+            >
+              <Text
+                style={{
+                  color:
+                    theme.text,
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                }}
+              >
+                Tmavý režim
+              </Text>
+
+              <Switch
+                value={darkMode}
+                onValueChange={
+                  setDarkMode
+                }
+              />
+            </View>
+
+            {!editingEnabled && (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder='Heslo 2587'
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+                />
+
+                <TouchableOpacity
+                  style={styles.unlockButton}
+                  onPress={unlockEditing}
+                >
+                  <Text
+                    style={styles.unlockButtonText}
+                  >
+                    Zapnúť editovanie
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {editingEnabled && (
+              <TouchableOpacity
+                style={[styles.unlockButton,{ backgroundColor:'#ff5252'}]}
+                onPress={() => setEditingEnabled(false)}
+              >
+                <Text style={styles.unlockButtonText}>
+                  Vypnúť editovanie
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {false && (
+          <View
+            style={[
+              styles.settingsBox,
+              {
+                backgroundColor:
+                  theme.card,
+              },
+            ]}>
+
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent:
+                  'space-between',
+                alignItems: 'center',
+                marginBottom: 15,
+              }}
+            >
+              <Text
+                style={{
+                  color:
+                    theme.text,
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                }}
+              >
+                Tmavý režim
+              </Text>
+
+              <Switch
+                value={darkMode}
+                onValueChange={
+                  setDarkMode
+                }
+              />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder='Zadaj heslo'
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+
+            <TouchableOpacity
+              style={styles.unlockButton}
+              onPress={unlockSettings}
+            >
+              <Text
+                style={
+                  styles.unlockButtonText
+                }
+              >
+                Odomknúť
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+
+        <View style={styles.row}>
+          <TouchableOpacity
+            style={[
+              styles.button,
+              shiftType === 'morning' &&
+                styles.active,
+            ]}
+            onPress={() =>
+              setShiftType('morning')
+            }
+          >
+            <Text>Ranná</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.button,
+              shiftType === 'lunch' &&
+                styles.active,
+            ]}
+            onPress={() =>
+              setShiftType('lunch')
+            }
+          >
+            <Text>Obedná</Text>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.section}>
+          Pred zmenou
+        </Text>
+
+        {checklist.map((item, index) => (
+          <View
+            key={index}
+            style={styles.checkRow}
+          >
+            <TextInput
+              style={styles.editableLabel}
+              value={item}
+              editable={editingEnabled}
+              onChangeText={(value) =>
+                updateChecklist(
+                  'before',
+                  index,
+                  value
+                )
+              }
+            />
+
+            {editingEnabled && (
+              <TouchableOpacity
+                onPress={() =>
+                  deleteChecklistItem(
+                    'after',
+                    index
+                  )
+                }
+              >
+                <Text style={{color:'red',marginRight:10}}>X</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.checkbox,
+                checks[`${shiftType}_${index}`] &&
+                  styles.greenCheckbox,
+              ]}
+              onPress={() =>
+                toggleCheck(`${shiftType}_${index}`)
+              }
+            >
+              <Text>
+                {checks[`${shiftType}_${index}`] ? '✓' : ''}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+
+        {editingEnabled && (
+          <>
+            <TextInput
+              style={styles.notesInput}
+              placeholder='Pridať políčko'
+              value={newBeforeItem}
+              onChangeText={setNewBeforeItem}
+            />
+
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={() =>
+                addChecklistItem('before')
+              }
+            >
+              <Text style={styles.resetButtonText}>
+                PRIDAŤ POLÍČKO
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        <Text style={styles.section}>
+          Počas zmeny
+        </Text>
+
+        {duringChecklist.map((item, index) => (
+          <View
+            key={index}
+            style={styles.checkRow}
+          >
+            <TextInput
+              style={styles.editableLabel}
+              value={item}
+              editable={editingEnabled}
+              onChangeText={(value) =>
+                updateChecklist(
+                  'during',
+                  index,
+                  value
+                )
+              }
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.checkbox,
+                duringChecks[`${shiftType}_${index}`] &&
+                  styles.greenCheckbox,
+              ]}
+              onPress={() =>
+                toggleDuringCheck(`${shiftType}_${index}`)
+              }
+            >
+              <Text>
+                {duringChecks[`${shiftType}_${index}`]
+                  ? '✓'
+                  : ''}
+              </Text>
+            </TouchableOpacity>
+          {editingEnabled && (
+              <TouchableOpacity
+                onPress={() =>
+                  deleteChecklistItem(
+                    'during',
+                    index
+                  )
+                }
+              >
+                <Text style={{color:'red',marginLeft:10}}>X</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
+
+        {editingEnabled && (
+          <>
+            <TextInput
+              style={styles.notesInput}
+              placeholder='Pridať políčko'
+              value={newDuringItem}
+              onChangeText={setNewDuringItem}
+            />
+
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={() =>
+                addChecklistItem('during')
+              }
+            >
+              <Text style={styles.resetButtonText}>
+                PRIDAŤ POLÍČKO
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+                <Text style={styles.section}>
+          Obhliadky prevádzky
+        </Text>
+
+        <View style={styles.walkContainer}>
+          {(shiftType === 'morning'
+            ? morningHours
+            : lunchHours
+          ).map((hour, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.walkTimeBox,
+                walkChecks[`${shiftType}_${index}`] &&
+                  styles.greenTimeBox,
+              ]}
+              onPress={() =>
+                toggleWalkCheck(`${shiftType}_${index}`)
+              }
+            >
+              <TextInput
+                style={styles.walkTimeText}
+                value={walkTimes[index]}
+                editable={editingEnabled}
+                onChangeText={(value) =>
+                  updateWalkTime(index, value)
+                }
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.section}>
+          Plan / Realita
+        </Text>
+
+        <ScrollView horizontal>
+          <View>
+            <View style={styles.tableHeader}>
+              <Text style={styles.cell}>
+                Hod
+              </Text>
+
+              <Text style={styles.cell}>
+                Sales Plan
+              </Text>
+
+              <Text style={styles.cell}>
+                Sales Real
+              </Text>
+
+              <Text style={styles.cell}>
+                TC Plan
+              </Text>
+
+              <Text style={styles.cell}>
+                TC Real
+              </Text>
+
+              <Text style={styles.cell}>
+                MFY
+              </Text>
+
+              <Text style={styles.cell}>
+                R2P
+              </Text>
+
+              <Text style={styles.cell}>
+                SEND
+              </Text>
+
+              <Text style={styles.cell}>
+                Del
+              </Text>
+            </View>
+
+            {tableData.map((row, index) => (
+              <View
+                key={index}
+                style={styles.tableRow}
+              >
+                <TextInput
+                  style={styles.inputCell}
+                  value={row.hour}
+                  onChangeText={(value) =>
+                    updateRow(index, 'hour', value)
+                  }
+                />
+
+                {[
+                  'salesPlan',
+                  'salesReality',
+                  'tcPlan',
+                  'tcReality',
+                  'mfy',
+                  'r2p',
+                  'sendKuch',
+                  'del',
+                ].map((field) => {
+                  const isSalesReality =
+                    field ===
+                    'salesReality';
+
+                  const isTcReality =
+                    field === 'tcReality';
+
+                  const theme = darkMode
+    ? darkTheme
+    : lightTheme;
+
+  return (
+                    <TextInput
+                      key={field}
+                      style={[
+                        styles.inputCell,
+
+                        (field === 'mfy' ||
+                          field === 'r2p') && {
+                          backgroundColor: '#d6f0ff',
+                        },
+
+                        isSalesReality && {
+                          backgroundColor:
+                            getPerformanceColor(
+                              row.salesPlan,
+                              row.salesReality
+                            ),
+                        },
+
+                        isTcReality && {
+                          backgroundColor:
+                            getPerformanceColor(
+                              row.tcPlan,
+                              row.tcReality
+                            ),
+                        },
+                      ]}
+                      value={row[field]}
+                      onChangeText={(value) =>
+                        updateRow(
+                          index,
+                          field,
+                          value
+                        )
+                      }
+                      editable={true}
+                      keyboardType='numeric'
+                    />
+                  );
+                })}
+              </View>
+            ))}
+                        <View style={styles.tableRow}>
+              <Text style={styles.sumCell}>
+                SUM
+              </Text>
+
+              <Text style={styles.sumCell}>
+                {calculateSum('salesPlan')}
+              </Text>
+
+              <Text style={styles.sumCell}>
+                {calculateSum(
+                  'salesReality'
+                )}
+              </Text>
+
+              <Text style={styles.sumCell}>
+                {calculateSum('tcPlan')}
+              </Text>
+
+              <Text style={styles.sumCell}>
+                {calculateSum(
+                  'tcReality'
+                )}
+              </Text>
+
+              <Text style={styles.sumCell}>
+                {calculateSum('mfy')}
+              </Text>
+
+              <Text style={styles.sumCell}>
+                {calculateAverage()}
+              </Text>
+
+              <Text style={styles.sumCell}>
+                {calculateSum(
+                  'sendKuch'
+                )}
+              </Text>
+
+              <Text style={styles.sumCell}>
+                {calculateSum('del')}
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
+
+        <Text style={styles.section}>
+          Hodiny
+        </Text>
+
+        <TextInput
+          style={styles.input}
+          placeholder='Počet hodín'
+          value={hoursWorked}
+          onChangeText={setHoursWorked}
+          editable={true}
+                      keyboardType='numeric'
+        />
+
+        <Text style={styles.section}>
+          Produktivita
+        </Text>
+
+        <View style={styles.productivityBox}>
+          <Text
+            style={styles.productivityText}
+          >
+            Plan Sales / TC:{' '}
+            {calculateProductivity(
+              'salesPlan'
+            )}{' '}
+            /{' '}
+            {calculateProductivity(
+              'tcPlan'
+            )}
+          </Text>
+
+          <Text
+            style={styles.productivityText}
+          >
+            Real Sales / TC:{' '}
+            {calculateProductivity(
+              'salesReality'
+            )}{' '}
+            /{' '}
+            {calculateProductivity(
+              'tcReality'
+            )}
+          </Text>
+        </View>
+
+        <Text style={styles.section}>
+          Poznámky
+        </Text>
+
+        <View style={styles.notesContainer}>
+          <TextInput
+            style={styles.notesInput}
+            placeholder='Sem môžeš zapisovať poznámky...'
+            multiline
+            value={notes}
+            onChangeText={setNotes}
+          />
+        </View>
+
+        <Text style={styles.section}>
+          Po zmene
+        </Text>
+
+        {afterChecklist.map((item, index) => (
+          <View
+            key={index}
+            style={styles.checkRow}
+          >
+            <TextInput
+              style={styles.editableLabel}
+              value={item}
+              editable={editingEnabled}
+              onChangeText={(value) =>
+                updateChecklist(
+                  'after',
+                  index,
+                  value
+                )
+              }
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.checkbox,
+                afterChecks[`${shiftType}_${index}`] &&
+                  styles.greenCheckbox,
+              ]}
+              onPress={() =>
+                toggleAfterCheck(`${shiftType}_${index}`)
+              }
+            >
+              <Text>
+                {afterChecks[`${shiftType}_${index}`]
+                  ? '✓'
+                  : ''}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+
+        {editingEnabled && (
+          <>
+            <TextInput
+              style={styles.notesInput}
+              placeholder='Pridať políčko'
+              value={newAfterItem}
+              onChangeText={setNewAfterItem}
+            />
+
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={() =>
+                addChecklistItem('after')
+              }
+            >
+              <Text style={styles.resetButtonText}>
+                PRIDAŤ POLÍČKO
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        <TouchableOpacity
+          style={styles.resetButton}
+          onPress={resetShift}
+        >
+          <Text style={styles.resetButtonText}>
+            RESET ZMENY
+          </Text>
+        </TouchableOpacity>
+
+      <View style={styles.footerContainer}>
+          <Text style={styles.footerTitle}>
+            CREATED BY
+          </Text>
+
+          <Text style={styles.footerName}>
+            Róbert Rosenberger
+          </Text>
+
+          <Text style={styles.footerSub}>
+            Shift Checklist 
+          </Text>
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const lightTheme = {
+  background: '#f2f2f2',
+  card: '#ffffff',
+  text: '#111111',
+  subText: '#666666',
+  icon: '#111111',
+};
+
+const darkTheme = {
+  background: '#121212',
+  card: '#1f1f1f',
+  text: '#ffffff',
+  subText: '#bbbbbb',
+  icon: '#ffffff',
+};
+
+const styles = StyleSheet.create({
+
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+  },
+
+  topRightSettings: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    padding: 6,
+    borderRadius: 10,
+  },
+
+
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+
+  content: {
+    padding: 16,
+    paddingBottom: 80,
+  },
+
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+
+  date: {
+    marginBottom: 10,
+    fontWeight: '600',
+  },
+
+  input: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+    row: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+
+  button: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 10,
+    backgroundColor: '#ddd',
+    alignItems: 'center',
+  },
+
+  active: {
+    backgroundColor: '#f7d44c',
+  },
+
+  section: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginVertical: 12,
+  },
+
+  checkRow: {
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+
+  label: {
+    flex: 1,
+  },
+
+  editableLabel: {
+    flex: 1,
+    fontSize: 15,
+  },
+
+  checkbox: {
+    width: 30,
+    height: 30,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+
+  checkedBox: {
+    backgroundColor: '#7DFFB3',
+  },
+
+  greenCheckbox: {
+    backgroundColor: '#7DFFB3',
+  },
+
+  walkContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+
+  walkTimeBox: {
+    width: '30%',
+    backgroundColor: 'white',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+
+  greenTimeBox: {
+    backgroundColor: '#7DFFB3',
+  },
+
+  walkTimeText: {
+    fontWeight: 'bold',
+    fontSize: 15,
+  },
+
+  tableHeader: {
+    flexDirection: 'row',
+  },
+
+  tableRow: {
+    flexDirection: 'row',
+  },
+
+  cell: {
+    width: 80,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    backgroundColor: '#ffe066',
+    textAlign: 'center',
+    fontSize: 12,
+  },
+
+  inputCell: {
+    width: 80,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    backgroundColor: '#fff9c4',
+    textAlign: 'center',
+    fontSize: 12,
+  },
+
+  sumCell: {
+    width: 80,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    backgroundColor: '#dfe6e9',
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+
+  productivityBox: {
+    backgroundColor: 'white',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+
+  productivityText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+
+  settingsButton: {
+    backgroundColor: '#222',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+
+  settingsButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+
+  settingsBox: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+
+  unlockButton: {
+    backgroundColor: '#f7d44c',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+
+  unlockButtonText: {
+    fontWeight: 'bold',
+  },
+
+  resetButton: {
+    backgroundColor: '#ff5252',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+
+  resetButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+
+  notesBox: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#d9d9d9',
+  },
+
+  notesInput: {
+    minHeight: 140,
+    textAlignVertical: 'top',
+    fontSize: 16,
+    color: '#222',
+  },
+
+  footerContainer: {
+    backgroundColor: '#1565c0',
+    borderRadius: 22,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginTop: 35,
+    marginBottom: 40,
+  },
+
+  footerTitle: {
+    color: '#bbdefb',
+    fontSize: 13,
+    letterSpacing: 2,
+  },
+
+  footerName: {
+    color: '#ffffff',
+    fontSize: 30,
+    fontWeight: 'bold',
+    marginTop: 8,
+  },
+
+  footerSub: {
+    color: '#e3f2fd',
+    marginTop: 8,
+    fontSize: 14,
+  },
+});
+
